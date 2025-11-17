@@ -11,7 +11,7 @@ OUTPUT_FOLDER = Path("./csv").resolve()
 
 # Toggle between parametric and non-parametric tests FOR P-VALUES
 # Effect sizes always use Cohen's d (standard for compositional data)
-USE_NONPARAMETRIC = True  # Set to False to use t-tests for p-values
+USE_NONPARAMETRIC = False  # Set to False to use t-tests for p-values
 
 ILR_COLUMNS = ["ilr1", "ilr2"]
 CLR_COLUMNS = ["toe_clr", "angle_clr", "inter_dep_clr"]

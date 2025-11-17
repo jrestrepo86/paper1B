@@ -1,0 +1,19 @@
+pval: "bonferroni"
+cycles: ["swing", "stance", "cycle"]
+boxplot: { colors: {
+        A-A: "#E69F00", # orange
+        S-S: "#56B4E9", # sky blue
+        A-S: "#009E73", # bluish green
+        S-A: "#F0E442", # yellow
+        Same: "#0072B2", # blue
+        Contra: "#D55E00", # vermillion
+        L-L: "#E69F00", # orange
+        R-R: "#56B4E9", # sky blue
+        L-R: "#009E73", # bluish green
+        R-L: "#F0E442", # yellow
+      } }
+coposition: { colors: {
+        toe_var_prop: "#3B82F6", # Blue for H(T|A)
+        angle_var_prop: "#10B981", # Green for H(A|T)
+        inter_dependence_prop: "#F59E0B", # Orange for I(T;A)
+      }, variable-labels: { toe_var_prop: "H(T|A)", angle_var_prop: "H(A|T)", inter_dependence_prop: "I(T;A)", total_var: "H(T;A)" } }
