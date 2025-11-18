@@ -306,7 +306,7 @@ def make_omnibus_plot(
             colors.append(get_pvalue_color(log_pval))
 
             hover_texts.append(f"p = {pval:.4f} {sig}")
-            text_labels.append(f"D={mahalanobis_d:.2f} ({cat})")
+            text_labels.append(f"D = {mahalanobis_d:.2f} ({cat})")
             y_labels.append(f"{class1} vs {class2}")
 
     y_positions = list(range(len(y_labels)))
@@ -424,7 +424,7 @@ def make_ilr_coordinates_plot(
                     x_vals.append(log_pval)
                     colors.append(get_pvalue_color(log_pval))
                     hover_texts.append(
-                        f"{ilr}: p={pval:.4f} {sig}<br>d={d:.2f} ({cat})"
+                        f"{ilr}: p={pval:.4f} {sig}<br>d = {d:.2f} ({cat})"
                     )
                     text_labels.append(f"d={d:.2f} ({cat})")
                     y_labels.append(f"{class1} vs {class2}<br><b>{ilr}</b>")
@@ -709,7 +709,7 @@ def make_ilr_scatter_plot(
                     opacity=0.7,
                     line=dict(width=1, color="white"),
                 ),
-                text=dfc["subject"],
+                text=class_data["subject"],
                 hovertemplate=(
                     f"<b>{class_name}</b><br>"
                     "Subject: %{text}<br>"

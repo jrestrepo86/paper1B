@@ -1,19 +1,94 @@
-pval: "bonferroni"
 cycles: ["swing", "stance", "cycle"]
-boxplot: { colors: {
-        A-A: "#E69F00", # orange
-        S-S: "#56B4E9", # sky blue
-        A-S: "#009E73", # bluish green
-        S-A: "#F0E442", # yellow
-        Same: "#0072B2", # blue
-        Contra: "#D55E00", # vermillion
-        L-L: "#E69F00", # orange
-        R-R: "#56B4E9", # sky blue
-        L-R: "#009E73", # bluish green
-        R-L: "#F0E442", # yellow
-      } }
-coposition: { colors: {
-        toe_var_prop: "#3B82F6", # Blue for H(T|A)
-        angle_var_prop: "#10B981", # Green for H(A|T)
-        inter_dependence_prop: "#F59E0B", # Orange for I(T;A)
-      }, variable-labels: { toe_var_prop: "H(T|A)", angle_var_prop: "H(A|T)", inter_dependence_prop: "I(T;A)", total_var: "H(T;A)" } }
+coposition:
+  title: "<b>Compositional Analysis</b>"
+  title-font-family: "Arial"
+  title-font-size: 24
+  title-text-color: "black"
+  subtitles:
+    - "<b>A.</b> Compositional Analysis by Class"
+    - "<b>B.</b> Omnibus Test (Hotelling's T²)"
+    - "<b>E.</b> ILR Space: Ipsilateral"
+    - "<b>C.</b> ILR Coordinates Post-hoc"
+    - "<b>F.</b> ILR Space: Contralateral"
+    - "<b>D.</b> Individual Proportions Post-hoc (CLR)"
+  subtitle-font-family: "Arial"
+  subtitle-font-size: 18
+  subtitle-text-color: "black"
+  variable-labels:
+    toe_var_prop: "Toe Var."
+    angle_var_prop: "Angle Var."
+    inter_dependence_prop: "Inter-dep."
+    total_var: "Total Var"
+    toe_clr: "Toe Var."
+    angle_clr: "Angle Var."
+    inter_dep_clr: "Inter-dep."
+  proportions-bar-plot:
+    colors:
+      toe_var_prop: "#3B82F6" # Blue for H(T|A)
+      angle_var_prop: "#10B981" # Green for H(A|T)
+      inter_dependence_prop: "#F59E0B" # Orange for I(T;A)
+    text-size: 16
+    bar-width: 0.7
+    annotation-text-size: 16
+    annotation-font-family: "Arial"
+    annotation-font-color: "white"
+    xaxis-label-text-size: 16
+    yaxis-label-text-size: 16
+  omnibus-plot:
+    mahalanobis-text-size: 16
+    mahalanobis-font-family: "Arial"
+    mahalanobis-font-color: "white"
+    p-value-annotation-text-size: 16
+    p-value-annotation-font-family: "Arial"
+    p-value-annotation-font-color: "gray"
+    xaxis-label-text-size: 16
+    yaxis-label-text-size: 16
+  ilr-coordinates-plot:
+    cohens-text-size: 16
+    cohens-font-family: "Arial"
+    p-value-annotation-text-size: 16
+    p-value-annotation-font-family: "Arial"
+    p-value-annotation-font-color: "gray"
+    xaxis-label-text-size: 16
+    yaxis-label-text-size: 16
+  clr-posthoc-plot:
+    cohens-text-size: 16
+    cohens-font-family: "Arial"
+    p-value-annotation-text-size: 16
+    p-value-annotation-font-family: "Arial"
+    p-value-annotation-font-color: "gray"
+    xaxis-label-text-size: 16
+    yaxis-label-text-size: 16
+  ilr-scatter-plot:
+    colors:
+      A-A: "#E69F00" # orange
+      S-S: "#56B4E9" # sky blue
+      A-S: "#009E73" # bluish green
+      S-A: "#F0E442" # yellow
+      Same: "#0072B2" # blue
+      Contra: "#D55E00" # vermillion
+      L-L: "#E69F00" # orange
+      R-R: "#56B4E9" # sky blue
+      L-R: "#009E73" # bluish green
+      R-L: "#F0E442" # yellow
+    marker-size: 10
+    hline:
+      color: "lightgray"
+      style: "dash"
+      width: 1
+    vline:
+      color: "lightgray"
+      style: "dash"
+      width: 1
+    text-size: 14
+    xaxis-label-text-size: 14
+    xaxis-label: "ILR1"
+    yaxis-label-text-size: 14
+    yaxis-label: "ILR2"
+  export-pdf:
+    width: 2100
+    height: 1200
+    scale: 1
+  export-html:
+    width: 2100
+    height: 1200
