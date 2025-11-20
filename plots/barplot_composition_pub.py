@@ -123,7 +123,7 @@ def make_proportion_barplot(
             class_data = dfc[dfc["toe_angle"] == class_name]
         # For aggregate healthy classes (Same, Contra)
         else:
-            class_data = dfc[dfc["toe_angle"] == class_name]
+            class_data = dfc[dfc["amp_sound"] == class_name]
 
         if len(class_data) == 0:
             continue
@@ -995,9 +995,9 @@ def main():
                 subject_df,
                 prosthesis,
                 cycle,
-                classes=ips_clases,
+                classes=contra_clases,
                 fig=fig,
-                row=1,
+                row=2,
                 col=3,
                 config=config,
             )
@@ -1006,9 +1006,9 @@ def main():
                 subject_df,
                 prosthesis,
                 cycle,
-                classes=contra_clases,
+                classes=ips_clases,
                 fig=fig,
-                row=2,
+                row=1,
                 col=3,
                 config=config,
             )

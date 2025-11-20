@@ -3,29 +3,25 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import yaml
 from plotly.subplots import make_subplots
 
-# Configuration
-METRICS_FILE = Path("../datos/csv/sim02_metrics.csv")
-PVALS_ILR_FILE = Path("../datos/csv/sim02_composition_pvals.csv")
+# Configuration files
+CONFIG_FILE = Path("../config.yml")
+METRICS_FILE = Path("../data/csv/sim02_metrics.csv")
+PVALS_ILR_FILE = Path("../data/csv/sim02_composition_pvals_nonparam.csv")
+SUBJECT_DATA_FILE = Path("../data/csv/sim02_complete_data.csv")
 
-FIGS_OUTPUT_PATH = Path("./figs/figs_crossgroup/")
+ILR_COLUMNS = ["ilr2", "ilr1"]
+PROPORTIONS = ["toe_var_prop", "angle_var_prop", "inter_dependence_prop"]
+CLR_COLUMNS = ["toe_clr", "angle_clr", "inter_dep_clr"]
 
-CYCLES = ["swing", "stance", "cycle"]
 
-# Define colors
-COLORS = {
-    "toe_var_prop": "#3B82F6",  # Blue for H(T|A)
-    "angle_var_prop": "#10B981",  # Green for H(A|T)
-    "inter_dependence_prop": "#F59E0B",  # Orange for I(T;A)
-}
-
-VARIABLE_LABELS = {
-    "toe_var_prop": "H(T|A)",
-    "angle_var_prop": "H(A|T)",
-    "inter_dependence_prop": "I(T;A)",
-    "total_var": "H(T;A)",
-}
+def load_config():
+    """Load configuration from YAML file"""
+    with open(CONFIG_FILE, "r") as f:
+        config = yaml.safe_load(f)
+    return config
 
 
 def get_pvalue_color(log_pval):
@@ -69,159 +65,205 @@ def get_effect_size_category(d):
         return "large"
 
 
-def make_proportion_barplot_crossgroup(
+def replace_class_labels(class_name):
+    """Replace Same with Ipsilateral and Contra with Contralateral"""
+    if class_name == "Same":
+        return "Ipsi"
+    elif class_name == "Contra":
+        return "Contra"
+    else:
+        return class_name
+
+
+def format_bar_text(proportion, value):
+    """Format text for stacked bars with better logic for small values"""
+    if proportion < 5:
+        return f"<b>{proportion:.2f}%</b> ({value:.2f})"
+    else:
+        return f"<b>{proportion:.2f}%</b><br>({value:.2f})"
+
+
+def make_proportion_barplot(
     df: pd.DataFrame,
-    conditions: list,
-    prostheses: list,
+    condition: str | list,
+    prosthesis: str | list,
     cycle: str,
     classes: list,
     fig: go.Figure,
     row: int,
     col: int,
+    config: dict,
 ):
-    """Create stacked bar plot for cross-group comparisons"""
+    """Create stacked bar plot showing proportions of H(T|A), H(A|T), and I(T;A)
+    Adapted from barplot_composition_pub.py for crossgroup use"""
+
+    plot_config = config["composition-crossgroup"]["proportions-bar-plot"]
+    colors = plot_config["colors"]
+    text_size = plot_config["text-size"]
+    bar_width = plot_config["bar-width"]
+    annotation_text_size = plot_config["annotation-text-size"]
+    annotation_font_family = plot_config["annotation-font-family"]
+    annotation_font_color = plot_config["annotation-font-color"]
+    xaxis_label_text_size = plot_config["xaxis-label-text-size"]
+    yaxis_label_text_size = plot_config["yaxis-label-text-size"]
+    variable_labels = config["composition-crossgroup"]["variable-labels"]
+
+    # Handle condition and prosthesis as lists
+    if isinstance(condition, str):
+        condition = [condition]
+    if isinstance(prosthesis, str):
+        prosthesis = [prosthesis]
+
+    # Filter data - Same and Contra are in amp_sound column
+    dfc = df[
+        (df["condition"].isin(condition))
+        & (df["prosthesis"].isin(prosthesis))
+        & (df["cycle"] == cycle)
+    ]
 
     # Extract data for each class
-    data_by_class = {}
+    toe_var_prop = []
+    angle_var_prop = []
+    inter_dependence_prop = []
+    toe_var = []
+    angle_var = []
+    inter_dependence = []
     total_var = []
+    valid_classes = []
 
     for class_name in classes:
-        class_col = "amp_sound"
-        # Determine which condition and prosthesis this class belongs to
-        if class_name in ["A-A", "S-S", "A-S", "S-A"]:
-            # Amputee class
-            condition_filter = "amputee"
-            prosthesis_filter = (
-                prostheses[0] if prostheses[0] != "none" else prostheses[1]
-            )
-        else:
-            # Healthy class (Same, Contra)
-            condition_filter = "healthy"
-            prosthesis_filter = "none"
-
-        # Filter data
-        class_data = df[
-            (df["condition"] == condition_filter)
-            & (df["prosthesis"] == prosthesis_filter)
-            & (df["cycle"] == cycle)
-            & (df[class_col] == class_name)
-        ]
+        # Filter by amp_sound column for Same/Contra classes
+        class_data = dfc[dfc["amp_sound"] == class_name]
 
         if len(class_data) == 0:
             continue
 
-        data_by_class[class_name] = {
-            "toe_var_prop": class_data["toe_var_prop"].values[0] * 100,
-            "angle_var_prop": class_data["angle_var_prop"].values[0] * 100,
-            "inter_dependence_prop": class_data["inter_dependence_prop"].values[0]
-            * 100,
-            "toe_var": class_data["toe_var"].values[0],
-            "angle_var": class_data["angle_var"].values[0],
-            "inter_dependence": class_data["inter_dependence"].values[0],
-        }
+        valid_classes.append(class_name)
+
+        # Extract mean values
+        toe_var_prop.append(class_data["toe_var_prop"].values[0] * 100)
+        angle_var_prop.append(class_data["angle_var_prop"].values[0] * 100)
+        inter_dependence_prop.append(
+            class_data["inter_dependence_prop"].values[0] * 100
+        )
+
+        toe_var.append(class_data["toe_var"].values[0])
+        angle_var.append(class_data["angle_var"].values[0])
+        inter_dependence.append(class_data["inter_dependence"].values[0])
         total_var.append(class_data["total_var"].values[0])
 
-    # Extract values
-    toe_var_prop = [
-        data_by_class[c]["toe_var_prop"] for c in classes if c in data_by_class
-    ]
-    angle_var_prop = [
-        data_by_class[c]["angle_var_prop"] for c in classes if c in data_by_class
-    ]
-    inter_dependence_prop = [
-        data_by_class[c]["inter_dependence_prop"] for c in classes if c in data_by_class
-    ]
+    # Replace class labels for display
+    display_classes = [replace_class_labels(c) for c in valid_classes]
 
-    toe_var = [data_by_class[c]["toe_var"] for c in classes if c in data_by_class]
-    angle_var = [data_by_class[c]["angle_var"] for c in classes if c in data_by_class]
-    inter_dependence = [
-        data_by_class[c]["inter_dependence"] for c in classes if c in data_by_class
-    ]
-
-    valid_classes = [c for c in classes if c in data_by_class]
-
-    w = 0.9
-
-    # Add stacked bars
+    # Add stacked bars - Toe variation
     fig.add_trace(
         go.Bar(
-            name="H(T|A)",
-            x=valid_classes,
+            name=variable_labels["toe_var_prop"],
+            x=display_classes,
             y=toe_var_prop,
-            marker_color=COLORS["toe_var_prop"],
-            text=[f"{p:.1f}% ({v:.2f})" for p, v in zip(toe_var_prop, toe_var)],
+            marker_color=colors["toe_var_prop"],
+            text=[format_bar_text(p, v) for p, v in zip(toe_var_prop, toe_var)],
             textposition="inside",
-            textfont=dict(color="white", size=12),
+            textfont=dict(
+                color=annotation_font_color,
+                size=text_size,
+                family=annotation_font_family,
+            ),
             showlegend=True,
-            legendgroup="htoe",
-            hovertemplate="H(T|A): %{y:.1f}% (%{customdata:.2f} nats)<extra></extra>",
+            legendgroup="legend",
+            legend="legend",
+            legendgrouptitle_text="Composition" if row == 1 else None,
+            hovertemplate="<b>H(T|A)</b><br>%{y:.2f}%<br>%{customdata:.3f} nats<extra></extra>",
             customdata=toe_var,
-            width=w,
+            width=bar_width,
         ),
         row=row,
         col=col,
     )
 
+    # Add stacked bars - Angle variation
     fig.add_trace(
         go.Bar(
-            name="H(A|T)",
-            x=valid_classes,
+            name=variable_labels["angle_var_prop"],
+            x=display_classes,
             y=angle_var_prop,
-            marker_color=COLORS["angle_var_prop"],
-            text=[f"{p:.1f}% ({v:.2f})" for p, v in zip(angle_var_prop, angle_var)],
+            marker_color=colors["angle_var_prop"],
+            text=[format_bar_text(p, v) for p, v in zip(angle_var_prop, angle_var)],
             textposition="inside",
-            textfont=dict(color="white", size=12),
+            textfont=dict(
+                color=annotation_font_color,
+                size=text_size,
+                family=annotation_font_family,
+            ),
             showlegend=True,
-            legendgroup="hangle",
-            hovertemplate="H(A|T): %{y:.1f}% (%{customdata:.2f} nats)<extra></extra>",
+            legend="legend",
+            legendgroup="legend",
+            legendgrouptitle_text="Composition" if row == 1 else None,
+            hovertemplate="<b>H(A|T)</b><br>%{y:.2f}%<br>%{customdata:.3f} nats<extra></extra>",
             customdata=angle_var,
-            width=w,
+            width=bar_width,
         ),
         row=row,
         col=col,
     )
 
+    # Add stacked bars - Inter-dependence
     fig.add_trace(
         go.Bar(
-            name="I(T;A)",
-            x=valid_classes,
+            name=variable_labels["inter_dependence_prop"],
+            x=display_classes,
             y=inter_dependence_prop,
-            marker_color=COLORS["inter_dependence_prop"],
+            marker_color=colors["inter_dependence_prop"],
             text=[
-                f"{p:.1f}% ({v:.2f})"
+                format_bar_text(p, v)
                 for p, v in zip(inter_dependence_prop, inter_dependence)
             ],
             textposition="inside",
-            textfont=dict(color="white", size=12),
+            textfont=dict(
+                color=annotation_font_color,
+                size=text_size,
+                family=annotation_font_family,
+            ),
             showlegend=True,
-            legendgroup="coord",
-            hovertemplate="I(T;A): %{y:.1f}% (%{customdata:.2f} nats)<extra></extra>",
+            legend="legend",
+            legendgroup="legend",
+            legendgrouptitle_text="Composition" if row == 1 else None,
+            hovertemplate="<b>I(T;A)</b><br>%{y:.2f}%<br>%{customdata:.3f} nats<extra></extra>",
             customdata=inter_dependence,
-            width=w,
+            width=bar_width,
         ),
         row=row,
         col=col,
     )
 
     # Add H(T,A) annotations above bars
-    for class_name, joint_ent in zip(valid_classes, total_var):
+    for display_class, joint_ent in zip(display_classes, total_var):
         fig.add_annotation(
-            x=class_name,
-            y=102,
+            x=display_class,
+            y=105,
             text=f"<b>{joint_ent:.2f}</b>",
             showarrow=False,
-            font=dict(size=12, color="black"),
+            font=dict(
+                size=annotation_text_size, color="black", family=annotation_font_family
+            ),
             xanchor="center",
             yanchor="bottom",
             row=row,
             col=col,
         )
 
+    # Update axis labels
     fig.update_yaxes(
         title_text="Composition (%)",
-        title_font=dict(size=12),
-        tickfont=dict(size=11),
-        range=[0, 110],
+        title_font=dict(size=yaxis_label_text_size, family=annotation_font_family),
+        tickfont=dict(size=yaxis_label_text_size - 2, family=annotation_font_family),
+        range=[0, 115],
+        row=row,
+        col=col,
+    )
+
+    fig.update_xaxes(
+        tickfont=dict(size=xaxis_label_text_size - 2, family=annotation_font_family),
         row=row,
         col=col,
     )
@@ -237,11 +279,25 @@ def make_omnibus_plot(
     fig: go.Figure,
     row: int,
     col: int,
+    config: dict,
 ):
-    """Create plot showing omnibus test results"""
+    """Create plot showing omnibus test results
+    Adapted from barplot_composition_pub.py"""
+
+    plot_config = config["composition-crossgroup"]["omnibus-plot"]
+    mahalanobis_text_size = plot_config["mahalanobis-text-size"]
+    mahalanobis_font_family = plot_config["mahalanobis-font-family"]
+    mahalanobis_font_color = plot_config["mahalanobis-font-color"]
+    pval_annotation_text_size = plot_config["p-value-annotation-text-size"]
+    pval_annotation_font_family = plot_config["p-value-annotation-font-family"]
+    pval_annotation_font_color = plot_config["p-value-annotation-font-color"]
+    xaxis_label_text_size = plot_config["xaxis-label-text-size"]
+    yaxis_label_text_size = plot_config["yaxis-label-text-size"]
 
     if isinstance(prosthesis, str):
         prosthesis = [prosthesis]
+    else:
+        prosthesis = ["-".join(prosthesis)]
 
     dfc = df[(df["prosthesis"].isin(prosthesis)) & (df["cycle"] == cycle)]
     pairs_reversed = list(reversed(pairs))
@@ -253,30 +309,35 @@ def make_omnibus_plot(
     y_labels = []
 
     for class1, class2 in pairs_reversed:
+        # Replace labels
+        display_class1 = replace_class_labels(class1)
+        display_class2 = replace_class_labels(class2)
+
         pair_str = f"({class1})-({class2})"
         comp_data = dfc[dfc["pair"] == pair_str]
 
         if len(comp_data) > 0:
-            pval = comp_data["omnibus_pval"].values[0]
+            row_data = comp_data.iloc[0]
+            pval = row_data["omnibus_pval"]
+            mahal_d = row_data["mahalanobis_D"]
 
-            # Fix p-value at 1e-4 if smaller
             pval = max(pval, 1e-4)
             log_pval = -np.log10(pval)
-
             sig = get_significance_symbol(pval)
+
             x_vals.append(log_pval)
             colors.append(get_pvalue_color(log_pval))
-            hover_texts.append(f"{class1} vs {class2}<br>Omnibus p={pval:.4f}<br>{sig}")
-            text_labels.append(sig)
-            y_labels.append(f"{class1} vs {class2}")
+            hover_texts.append(f"p = {pval:.4f} {sig}<br>Mahalanobis D = {mahal_d:.2f}")
+            text_labels.append(f"<b>D = {mahal_d:.2f}</b>")
+            y_labels.append(f"{display_class1} vs {display_class2}")
         else:
             x_vals.append(0)
             colors.append("#d3d3d3")
             hover_texts.append("No data")
             text_labels.append("")
-            y_labels.append(f"{class1} vs {class2}")
+            y_labels.append(f"{display_class1} vs {display_class2}")
 
-    # Add bars
+    # Create horizontal bar plot
     fig.add_trace(
         go.Bar(
             x=x_vals,
@@ -285,41 +346,69 @@ def make_omnibus_plot(
             marker_color=colors,
             text=text_labels,
             textposition="inside",
-            textfont=dict(color="white", size=11),
+            textfont=dict(
+                color=mahalanobis_font_color,
+                size=mahalanobis_text_size,
+                family=mahalanobis_font_family,
+            ),
             hovertext=hover_texts,
             hoverinfo="text",
             showlegend=False,
-            width=0.7,
+            width=0.5,
         ),
         row=row,
         col=col,
     )
 
-    # Add significance lines
+    y_positions = list(range(len(y_labels)))
+
+    # Add significance threshold lines
     for x_val, label in [(1.301, "0.05"), (2.0, "0.01"), (3.0, "0.001")]:
-        fig.add_vline(
-            x=x_val, line_dash="dash", line_color="gray", line_width=1, row=row, col=col
+        fig.add_shape(
+            type="line",
+            xref="x",
+            yref="paper",
+            x0=x_val,
+            x1=x_val,
+            y0=-1,
+            y1=max(y_positions) + 0.46 if y_positions else 1,
+            line_dash="dash",
+            line_color="gray",
+            line_width=1,
+            row=row,
+            col=col,
         )
         fig.add_annotation(
             x=x_val,
-            y=len(y_labels) - 0.5,
+            y=max(y_positions) + 0.5 if y_positions else 1,
+            xref="x",
+            yref="paper",
             text=label,
             showarrow=False,
             xanchor="center",
             yanchor="bottom",
-            font=dict(size=10, color="gray"),
+            font=dict(
+                size=pval_annotation_text_size - 2,
+                color=pval_annotation_font_color,
+                family=pval_annotation_font_family,
+            ),
             row=row,
             col=col,
         )
 
     fig.update_xaxes(
-        title_text="-log10(p-value)", title_font=dict(size=12), row=row, col=col
+        title_text="-log<sub>10</sub>(p-value)",
+        title_font=dict(size=xaxis_label_text_size, family=pval_annotation_font_family),
+        tickfont=dict(
+            size=xaxis_label_text_size - 2, family=pval_annotation_font_family
+        ),
+        row=row,
+        col=col,
     )
     fig.update_yaxes(
-        tickmode="array",
-        tickvals=list(range(len(y_labels))),
-        ticktext=y_labels,
-        tickfont=dict(size=11),
+        tickfont=dict(
+            size=yaxis_label_text_size - 2, family=pval_annotation_font_family
+        ),
         row=row,
         col=col,
     )
@@ -335,14 +424,26 @@ def make_ilr_coordinates_plot(
     fig: go.Figure,
     row: int,
     col: int,
+    config: dict,
 ):
-    """Create plot showing ILR coordinate tests with effect sizes inside bars"""
+    """Create plot showing ILR coordinate post-hoc tests
+    Adapted from barplot_composition_pub.py"""
+
+    plot_config = config["composition-crossgroup"]["ilr-coordinates-plot"]
+    cohens_text_size = plot_config["cohens-text-size"]
+    cohens_font_family = plot_config["cohens-font-family"]
+    pval_annotation_text_size = plot_config["p-value-annotation-text-size"]
+    pval_annotation_font_family = plot_config["p-value-annotation-font-family"]
+    pval_annotation_font_color = plot_config["p-value-annotation-font-color"]
+    xaxis_label_text_size = plot_config["xaxis-label-text-size"]
+    yaxis_label_text_size = plot_config["yaxis-label-text-size"]
 
     if isinstance(prosthesis, str):
         prosthesis = [prosthesis]
+    else:
+        prosthesis = ["-".join(prosthesis)]
 
     dfc = df[(df["prosthesis"].isin(prosthesis)) & (df["cycle"] == cycle)]
-    coord_names = ["ILR2", "ILR1"]
     pairs_reversed = list(reversed(pairs))
 
     x_vals = []
@@ -354,6 +455,10 @@ def make_ilr_coordinates_plot(
 
     y_pos = 0
     for class1, class2 in pairs_reversed:
+        # Replace labels
+        display_class1 = replace_class_labels(class1)
+        display_class2 = replace_class_labels(class2)
+
         pair_str = f"({class1})-({class2})"
         comp_data = dfc[dfc["pair"] == pair_str]
 
@@ -361,34 +466,35 @@ def make_ilr_coordinates_plot(
             row_data = comp_data.iloc[0]
 
             if row_data["omnibus_significant"]:
-                for coord_name in coord_names:
-                    pval = row_data[f"{coord_name}_pval_bonf"]
-                    d = row_data[f"{coord_name}_cohens_d"]
-
-                    # Fix p-value at 1e-4 if smaller
+                for ilr in ILR_COLUMNS:
+                    pval = row_data[f"{ilr}_pval_bonf"]
+                    d = row_data[f"{ilr}_cohens_d"]
                     pval = max(pval, 1e-4)
                     log_pval = -np.log10(pval)
-
                     sig = get_significance_symbol(pval)
                     cat = get_effect_size_category(d)
 
                     x_vals.append(log_pval)
                     colors.append(get_pvalue_color(log_pval))
                     hover_texts.append(
-                        f"{coord_name} p={pval:.4f} {sig}<br>d={d:.2f} ({cat})"
+                        f"{ilr}: p={pval:.4f} {sig}<br>d = {d:.2f} ({cat})"
                     )
-                    text_labels.append(f"{sig} | d={abs(d):.2f} ({cat})")
-                    y_labels.append(f"{class1} vs {class2}<br>{coord_name}")
+                    text_labels.append(f"<b>d = {d:.2f} ({cat})</b>")
+                    y_labels.append(
+                        f"{display_class1} vs {display_class2}<br><b>{ilr}</b>"
+                    )
                     y_positions.append(y_pos)
                     y_pos += 1
             else:
                 # Omnibus not significant
-                for coord_name in coord_names:
+                for coord in ILR_COLUMNS:
                     x_vals.append(0)
                     colors.append("#d3d3d3")
                     hover_texts.append("Omnibus NS")
                     text_labels.append("")
-                    y_labels.append(f"{class1} vs {class2}<br>{coord_name}")
+                    y_labels.append(
+                        f"{display_class1} vs {display_class2}<br><b>{coord}</b>"
+                    )
                     y_positions.append(y_pos)
                     y_pos += 1
 
@@ -403,7 +509,9 @@ def make_ilr_coordinates_plot(
             marker_color=colors,
             text=text_labels,
             textposition="inside",
-            textfont=dict(color="white", size=11),
+            textfont=dict(
+                color="white", size=cohens_text_size, family=cohens_font_family
+            ),
             hovertext=hover_texts,
             hoverinfo="text",
             showlegend=False,
@@ -415,29 +523,52 @@ def make_ilr_coordinates_plot(
 
     # Add significance lines
     for x_val, label in [(1.301, "0.05"), (2.0, "0.01"), (3.0, "0.001")]:
-        fig.add_vline(
-            x=x_val, line_dash="dash", line_color="gray", line_width=1, row=row, col=col
+        fig.add_shape(
+            type="line",
+            xref="x",
+            yref="paper",
+            x0=x_val,
+            x1=x_val,
+            y0=-1,
+            y1=max(y_positions) + 1.15 if y_positions else 1,
+            line_dash="dash",
+            line_color="gray",
+            line_width=1,
+            row=row,
+            col=col,
         )
         fig.add_annotation(
             x=x_val,
-            y=max(y_positions) + 0.5 if y_positions else 1,
+            y=max(y_positions) + 1.2 if y_positions else 1,
             text=label,
             showarrow=False,
             xanchor="center",
             yanchor="bottom",
-            font=dict(size=10, color="gray"),
+            font=dict(
+                size=pval_annotation_text_size - 2,
+                color=pval_annotation_font_color,
+                family=pval_annotation_font_family,
+            ),
             row=row,
             col=col,
         )
 
     fig.update_xaxes(
-        title_text="-log10(p-value)", title_font=dict(size=12), row=row, col=col
+        title_text="-log<sub>10</sub>(p-value)",
+        title_font=dict(size=xaxis_label_text_size, family=pval_annotation_font_family),
+        tickfont=dict(
+            size=xaxis_label_text_size - 2, family=pval_annotation_font_family
+        ),
+        row=row,
+        col=col,
     )
     fig.update_yaxes(
         tickmode="array",
         tickvals=y_positions,
         ticktext=y_labels,
-        tickfont=dict(size=11),
+        tickfont=dict(
+            size=yaxis_label_text_size - 2, family=pval_annotation_font_family
+        ),
         row=row,
         col=col,
     )
@@ -453,14 +584,27 @@ def make_proportions_posthoc_plot(
     fig: go.Figure,
     row: int,
     col: int,
+    config: dict,
 ):
-    """Create plot showing individual proportion tests with effect sizes inside bars"""
+    """Create plot showing individual proportion tests
+    Adapted from barplot_composition_pub.py"""
+
+    plot_config = config["composition-crossgroup"]["clr-posthoc-plot"]
+    variable_labels = config["composition-crossgroup"]["variable-labels"]
+    cohens_text_size = plot_config["cohens-text-size"]
+    cohens_font_family = plot_config["cohens-font-family"]
+    pval_annotation_text_size = plot_config["p-value-annotation-text-size"]
+    pval_annotation_font_family = plot_config["p-value-annotation-font-family"]
+    pval_annotation_font_color = plot_config["p-value-annotation-font-color"]
+    xaxis_label_text_size = plot_config["xaxis-label-text-size"]
+    yaxis_label_text_size = plot_config["yaxis-label-text-size"]
 
     if isinstance(prosthesis, str):
         prosthesis = [prosthesis]
+    else:
+        prosthesis = ["-".join(prosthesis)]
 
     dfc = df[(df["prosthesis"].isin(prosthesis)) & (df["cycle"] == cycle)]
-    prop_names = ["toe_var_prop", "angle_var_prop", "inter_dependence_prop"]
     pairs_reversed = list(reversed(pairs))
 
     x_vals = []
@@ -472,6 +616,10 @@ def make_proportions_posthoc_plot(
 
     y_pos = 0
     for class1, class2 in pairs_reversed:
+        # Replace labels
+        display_class1 = replace_class_labels(class1)
+        display_class2 = replace_class_labels(class2)
+
         pair_str = f"({class1})-({class2})"
         comp_data = dfc[dfc["pair"] == pair_str]
 
@@ -479,35 +627,35 @@ def make_proportions_posthoc_plot(
             row_data = comp_data.iloc[0]
 
             if row_data["omnibus_significant"]:
-                for prop in prop_names:
+                for prop in CLR_COLUMNS:
                     pval = row_data[f"{prop}_pval_bonf"]
-                    d_orig = row_data[f"{prop}_cohens_d_orig"]
-
-                    # Fix p-value at 1e-4 if smaller
+                    d_orig = row_data[f"{prop}_cohens_d"]
                     pval = max(pval, 1e-4)
                     log_pval = -np.log10(pval)
-
                     sig = get_significance_symbol(pval)
                     cat = get_effect_size_category(d_orig)
 
                     x_vals.append(log_pval)
                     colors.append(get_pvalue_color(log_pval))
-
                     hover_texts.append(
-                        f"{VARIABLE_LABELS[prop]} p={pval:.4f} {sig}<br>d={d_orig:.2f} ({cat})"
+                        f"{variable_labels[prop]}: p={pval:.4f} {sig}<br>d = {d_orig:.2f} ({cat})"
                     )
-                    text_labels.append(f"{sig} | d={abs(d_orig):.2f} ({cat})")
-                    y_labels.append(f"{class1} vs {class2}<br>{VARIABLE_LABELS[prop]}")
+                    text_labels.append(f"<b>d = {d_orig:.2f} ({cat})</b>")
+                    y_labels.append(
+                        f"{display_class1} vs {display_class2}<br><b>{variable_labels[prop]}</b>"
+                    )
                     y_positions.append(y_pos)
                     y_pos += 1
             else:
                 # Omnibus not significant
-                for prop in prop_names:
+                for prop in CLR_COLUMNS:
                     x_vals.append(0)
                     colors.append("#d3d3d3")
                     hover_texts.append("Omnibus NS")
                     text_labels.append("")
-                    y_labels.append(f"{class1} vs {class2}<br>{VARIABLE_LABELS[prop]}")
+                    y_labels.append(
+                        f"{display_class1} vs {display_class2}<br><b>{variable_labels[prop]}</b>"
+                    )
                     y_positions.append(y_pos)
                     y_pos += 1
 
@@ -522,7 +670,9 @@ def make_proportions_posthoc_plot(
             marker_color=colors,
             text=text_labels,
             textposition="inside",
-            textfont=dict(color="white", size=10),
+            textfont=dict(
+                color="white", size=cohens_text_size, family=cohens_font_family
+            ),
             hovertext=hover_texts,
             hoverinfo="text",
             showlegend=False,
@@ -534,29 +684,52 @@ def make_proportions_posthoc_plot(
 
     # Add significance lines
     for x_val, label in [(1.301, "0.05"), (2.0, "0.01"), (3.0, "0.001")]:
-        fig.add_vline(
-            x=x_val, line_dash="dash", line_color="gray", line_width=1, row=row, col=col
+        fig.add_shape(
+            type="line",
+            xref="x",
+            yref="paper",
+            x0=x_val,
+            x1=x_val,
+            y0=-1,
+            y1=max(y_positions) + 1.15 if y_positions else 1,
+            line_dash="dash",
+            line_color="gray",
+            line_width=1,
+            row=row,
+            col=col,
         )
         fig.add_annotation(
             x=x_val,
-            y=max(y_positions) + 0.5 if y_positions else 1,
+            y=max(y_positions) + 1.2 if y_positions else 1,
             text=label,
             showarrow=False,
             xanchor="center",
             yanchor="bottom",
-            font=dict(size=10, color="gray"),
+            font=dict(
+                size=pval_annotation_text_size - 2,
+                color=pval_annotation_font_color,
+                family=pval_annotation_font_family,
+            ),
             row=row,
             col=col,
         )
 
     fig.update_xaxes(
-        title_text="-log10(p-value)", title_font=dict(size=12), row=row, col=col
+        title_text="-log<sub>10</sub>(p-value)",
+        title_font=dict(size=xaxis_label_text_size, family=pval_annotation_font_family),
+        tickfont=dict(
+            size=xaxis_label_text_size - 2, family=pval_annotation_font_family
+        ),
+        row=row,
+        col=col,
     )
     fig.update_yaxes(
         tickmode="array",
         tickvals=y_positions,
         ticktext=y_labels,
-        tickfont=dict(size=10),
+        tickfont=dict(
+            size=yaxis_label_text_size - 2, family=pval_annotation_font_family
+        ),
         row=row,
         col=col,
     )
@@ -564,145 +737,349 @@ def make_proportions_posthoc_plot(
     return fig
 
 
-if __name__ == "__main__":
+def make_ilr_scatter_plot(
+    subject_df: pd.DataFrame,
+    prosthesis: str | list,
+    cycle: str,
+    classes: list,
+    fig: go.Figure,
+    row: int,
+    col: int,
+    config: dict,
+):
+    """Create ILR scatter plot for specified classes
+    Adapted from barplot_composition_pub.py"""
+
+    plot_config = config["composition-crossgroup"]["ilr-scatter-plot"]
+    class_colors = plot_config["colors"]
+    marker_size = plot_config["marker-size"]
+    xaxis_label = plot_config["xaxis-label"]
+    xaxis_label_text_size = plot_config["xaxis-label-text-size"]
+    yaxis_label = plot_config["yaxis-label"]
+    yaxis_label_text_size = plot_config["yaxis-label-text-size"]
+    x_axis_zero = plot_config["xaxis-zeroline"]
+    y_axis_zero = plot_config["yaxis-zeroline"]
+
+    if isinstance(prosthesis, str):
+        prosthesis = [prosthesis]
+
+    # Filter data - Same and Contra are in amp_sound column for healthy subjects
+    dfc = subject_df[
+        (subject_df["prosthesis"].isin(prosthesis)) & (subject_df["cycle"] == cycle)
+    ]
+
+    if len(dfc) == 0:
+        return fig
+
+    xmin = dfc["ilr1"].min()
+    xmax = dfc["ilr1"].max()
+    ymin = dfc["ilr2"].min()
+    ymax = dfc["ilr2"].max()
+
+    # Plot each class
+    for class_name in classes:
+        # Replace labels for display
+        display_class = replace_class_labels(class_name)
+
+        # Filter by amp_sound column (Same/Contra are here for healthy subjects)
+        class_data = dfc[dfc["amp_sound"] == class_name]
+
+        if len(class_data) == 0:
+            continue
+
+        # Extract ILR coordinates
+        ilr1 = class_data["ilr1"].values
+        ilr2 = class_data["ilr2"].values
+
+        # Add scatter trace
+        fig.add_trace(
+            go.Scatter(
+                x=ilr1,
+                y=ilr2,
+                mode="markers",
+                name=display_class,
+                marker=dict(
+                    size=marker_size,
+                    color=class_colors.get(class_name, "#333333"),
+                    opacity=0.7,
+                    line=dict(width=1, color="white"),
+                ),
+                text=class_data["subject"],
+                hovertemplate=(
+                    f"<b>{display_class}</b><br>"
+                    "Subject: %{text}<br>"
+                    "ILR1: %{x:.3f}<br>"
+                    "ILR2: %{y:.3f}<br>"
+                    "<extra></extra>"
+                ),
+                showlegend=True,
+                legend="legend2",
+                legendgroup="legend2",
+                legendgrouptitle_text="ILR Classes" if row == 1 else None,
+            ),
+            row=row,
+            col=col,
+        )
+
+    xmax = max(xmax, 0)
+    ymax = max(ymax, 0)
+    xmin = min(xmin, 0)
+    ymin = min(ymin, 0)
+
+    # Update axes
+    fig.update_xaxes(
+        range=[xmin - 0.1, xmax + 0.1],
+        title_text=xaxis_label,
+        title_font=dict(
+            size=xaxis_label_text_size,
+            family=config["composition-crossgroup"]["subtitle-font-family"],
+        ),
+        tickfont=dict(
+            size=xaxis_label_text_size - 2,
+            family=config["composition-crossgroup"]["subtitle-font-family"],
+        ),
+        zeroline=True,
+        zerolinewidth=x_axis_zero["width"],
+        zerolinecolor=x_axis_zero["color"],
+        row=row,
+        col=col,
+    )
+
+    fig.update_yaxes(
+        range=[ymin - 0.1, ymax + 0.1],
+        title_text=yaxis_label,
+        title_font=dict(
+            size=yaxis_label_text_size,
+            family=config["composition-crossgroup"]["subtitle-font-family"],
+        ),
+        tickfont=dict(
+            size=yaxis_label_text_size - 2,
+            family=config["composition-crossgroup"]["subtitle-font-family"],
+        ),
+        zeroline=True,
+        zerolinewidth=y_axis_zero["width"],
+        zerolinecolor=y_axis_zero["color"],
+        row=row,
+        col=col,
+    )
+
+    return fig
+
+
+def main():
+    """Main function to generate all plots"""
+
+    # Load configuration
+    config = load_config()
+    cycles = config["cycles"]
+    comp_config = config["composition-crossgroup"]
+
+    # Extract output folder path
+    figs_output_path = Path("../figs/figs_crossgroup/")
+    figs_output_path.mkdir(parents=True, exist_ok=True)
+
     # Load data
     metrics_df = pd.read_csv(METRICS_FILE)
     pvals_df = pd.read_csv(PVALS_ILR_FILE)
+    subject_df = pd.read_csv(SUBJECT_DATA_FILE)
 
     # Define cross-group plots
     PLOTS = [
-        # Healthy: Same vs Contra
+        # Healthy: Same vs Contra (Ipsilateral vs Contralateral)
         {
-            "name": "Healthy_Same_vs_Contra",
+            "name": "Healthy_Ipsi_vs_Contra",
             "conditions": ["healthy"],
             "prostheses": ["none"],
             "classes": ["Same", "Contra"],
             "pairs": [
                 ("Same", "Contra"),
             ],
-            "title_suffix": "Healthy Subjects: Same vs Contra",
-        },
-        # Amputee (Mech) vs Healthy (Ipsilateral)
-        {
-            "name": "Amputee_Mech_vs_Healthy_Ipsilateral",
-            "conditions": ["amputee", "healthy"],
-            "prostheses": ["Mech", "none"],
-            "classes": [
-                "A-A",
-                "S-S",
-                "Same",
-            ],
-            "pairs": [
-                ("A-A", "Same"),
-                ("S-S", "Same"),
-            ],
-            "title_suffix": "Amputee (Mech) vs Healthy",
-        },
-        # Amputee (Mech) vs Healthy (Contralateral)
-        {
-            "name": "Amputee_Mech_vs_Healthy_contralateral",
-            "conditions": ["amputee", "healthy"],
-            "prostheses": ["Mech", "none"],
-            "classes": ["A-S", "S-A", "Contra"],
-            "pairs": [
-                ("A-S", "Contra"),
-                ("S-A", "Contra"),
-            ],
-            "title_suffix": "Amputee (Mech) vs Healthy",
-        },
-        # Amputee (Ech) vs Healthy
-        {
-            "name": "Amputee_Ech_vs_Healthy",
-            "conditions": ["amputee", "healthy"],
-            "prostheses": ["Ech", "none"],
-            "classes": ["A-A", "S-S", "Same", "A-S", "S-A", "Contra"],
-            "pairs": [
-                ("A-A", "Same"),
-                ("S-S", "Same"),
-                # ("A-S", "Contra"),
-                # ("S-A", "Contra"),
-            ],
-            "title_suffix": "Amputee (Ech) vs Healthy",
+            "title_suffix": "Ipsilateral vs Contralateral",
         },
     ]
 
-    for plot_config in PLOTS:
-        name = plot_config["name"]
-        conditions = plot_config["conditions"]
-        prostheses = plot_config["prostheses"]
-        classes = plot_config["classes"]
-        pairs = plot_config["pairs"]
-        title_suffix = plot_config["title_suffix"]
+    for plot_config_item in PLOTS:
+        name = plot_config_item["name"]
+        conditions = plot_config_item["conditions"]
+        prostheses = plot_config_item["prostheses"]
+        classes = plot_config_item["classes"]
+        pairs = plot_config_item["pairs"]
+        title_suffix = plot_config_item["title_suffix"]
 
         # Determine prosthesis string for filtering p-values
         if "none" in prostheses and len(prostheses) == 1:
-            # Healthy only
             pval_prosthesis = ["none"]
         else:
-            # Cross-group comparison
             pval_prosthesis = [f"{prostheses[0]}-none"]
 
-        for cycle in CYCLES:
-            # Create 2×2 subplot layout
+        for cycle in cycles:
+            # Get base subtitles from config
+            subplot_titles = comp_config["subtitles"]
+
+            # Create 3x3 subplot layout
+            # Col1: Barplots (3 rows tall)
+            # Col2 Row1: Omnibus, Row2: ILR post-hoc, Row3: CLR post-hoc
+            # Col3 Row1-2: Scatter (2 rows tall), Row3: Legends placeholder
             fig = make_subplots(
-                rows=2,
-                cols=2,
-                subplot_titles=(
-                    "A. Compositional Analysis by Class",
-                    "B. Omnibus Test (Hotelling's T²)",
-                    "C. ILR Coordinates Post-hoc",
-                    "D. Individual Proportions Post-hoc (CLR)",
-                ),
+                rows=3,
+                cols=3,
+                subplot_titles=subplot_titles,
                 specs=[
-                    [{"type": "bar"}, {"type": "bar"}],
-                    [{"type": "bar"}, {"type": "bar"}],
+                    [
+                        {"rowspan": 3, "type": "bar"},
+                        {"type": "bar"},
+                        {"rowspan": 2, "type": "scatter"},
+                    ],
+                    [None, {"type": "bar"}, None],
+                    [
+                        None,
+                        {"type": "bar"},
+                        None,
+                    ],  # Row 3 Col 3 is for legends (no subplot)
                 ],
                 horizontal_spacing=0.10,
                 vertical_spacing=0.10,
-                row_heights=[0.6, 0.4],
-                column_widths=[0.5, 0.5],
+                row_heights=[0.33, 0.33, 0.34],
+                column_widths=[0.35, 0.35, 0.30],
             )
 
             # Add subplots
-            fig = make_proportion_barplot_crossgroup(
-                metrics_df, conditions, prostheses, cycle, classes, fig, row=1, col=1
+            # A. Barplots (col 1, rows 1-3)
+            fig = make_proportion_barplot(
+                metrics_df,
+                conditions,
+                prostheses,
+                cycle,
+                classes,
+                fig,
+                row=1,
+                col=1,
+                config=config,
             )
 
+            # B. Omnibus (col 2, row 1)
             fig = make_omnibus_plot(
-                pvals_df, pval_prosthesis, cycle, pairs, fig, row=1, col=2
+                pvals_df,
+                pval_prosthesis,
+                cycle,
+                pairs,
+                fig,
+                row=1,
+                col=2,
+                config=config,
             )
 
+            # ILR post-hoc (col 2, row 2)
             fig = make_ilr_coordinates_plot(
-                pvals_df, pval_prosthesis, cycle, pairs, fig, row=2, col=1
+                pvals_df,
+                pval_prosthesis,
+                cycle,
+                pairs,
+                fig,
+                row=2,
+                col=2,
+                config=config,
             )
 
+            # C. CLR post-hoc (col 2, row 3)
             fig = make_proportions_posthoc_plot(
-                pvals_df, pval_prosthesis, cycle, pairs, fig, row=2, col=2
+                pvals_df,
+                pval_prosthesis,
+                cycle,
+                pairs,
+                fig,
+                row=3,
+                col=2,
+                config=config,
             )
 
-            # Update layout
-            title = f"Compositional Analysis (Balance ILR) - {title_suffix} - {cycle.capitalize()} Phase"
+            # E. Scatter plot (col 3, rows 1-2)
+            fig = make_ilr_scatter_plot(
+                subject_df,
+                prostheses,
+                cycle,
+                classes,
+                fig,
+                row=1,
+                col=3,
+                config=config,
+            )
 
+            # Generate dynamic title with cycle information
+            if cycle == "cycle":
+                cycle_text = "Complete Cycle"
+            elif cycle == "swing":
+                cycle_text = "Swing Phase"
+            else:
+                cycle_text = "Stance Phase"
+
+            # Build title from config base + dynamic cycle info
+            base_title = comp_config["title"]
+            title = f"{base_title} - {title_suffix} - <b>{cycle_text}</b>"
+
+            # Get export dimensions from config
+            figure_width = comp_config["export-html"]["width"]
+            figure_height = comp_config["export-html"]["height"]
+
+            # Get legend configuration
+            composition_legend = comp_config.get("composition-legend", {})
+            scatter_legend = comp_config.get("scatter-legend", {})
+
+            # Update layout with config parameters
             fig.update_layout(
                 title={
                     "text": title,
                     "x": 0.5,
                     "xanchor": "center",
-                    "font": {"size": 20},
+                    "font": {
+                        "size": comp_config["title-font-size"],
+                        "family": comp_config["title-font-family"],
+                        "color": comp_config["title-text-color"],
+                    },
                 },
                 barmode="stack",
-                height=900,
-                width=1400,
-                font=dict(size=12),
+                height=figure_height,
+                width=figure_width,
+                font=dict(
+                    size=comp_config["subtitle-font-size"],
+                    family=comp_config["subtitle-font-family"],
+                ),
                 plot_bgcolor="white",
                 paper_bgcolor="white",
+                showlegend=True,
+                legend=composition_legend,
+                legend2=scatter_legend,
             )
 
+            # Update subplot title fonts
+            for i in fig["layout"]["annotations"]:
+                for t in subplot_titles:
+                    if t in i["text"]:
+                        i["font"] = dict(
+                            size=comp_config["subtitle-font-size"],
+                            family=comp_config["subtitle-font-family"],
+                            color=comp_config["subtitle-text-color"],
+                        )
+
             # Save figure
-            FIGS_OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
-            output_file = FIGS_OUTPUT_PATH / f"ilr_analysis_{name}_{cycle}.html"
+            output_file = (
+                figs_output_path / f"crossgroup_ilr_analysis_{name}_{cycle}.html"
+            )
             fig.write_html(str(output_file))
             print(f"Saved: {output_file}")
 
-            # Uncomment to show figures interactively
-            # fig.show()
+            # Save as PDF with config dimensions
+            output_pdf = (
+                figs_output_path / f"crossgroup_ilr_analysis_{name}_{cycle}.pdf"
+            )
+            fig.write_image(
+                str(output_pdf),
+                width=comp_config["export-pdf"]["width"],
+                height=comp_config["export-pdf"]["height"],
+                scale=comp_config["export-pdf"]["scale"],
+            )
+            print(f"Saved: {output_pdf}")
+
+
+if __name__ == "__main__":
+    main()
