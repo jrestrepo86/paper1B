@@ -38,7 +38,7 @@ PHASE_COLORS = {
 # =============================================================================
 
 
-def calculate_laterality_index(data, metric="inter_dependence_prop"):
+def calculate_laterality_index(data, metric):
     """
     Calculate Laterality Index for a given metric
 
@@ -498,7 +498,7 @@ def main():
 
     # Calculate Laterality Index
     print("\n3. Calculating Laterality Index (LI_MI)...")
-    li_data = calculate_laterality_index(healthy, metric="inter_dependence_prop")
+    li_data = calculate_laterality_index(healthy, metric="mi")
     print(f"   Calculated LI for {len(li_data)} subject-phase combinations")
 
     # Display summary statistics

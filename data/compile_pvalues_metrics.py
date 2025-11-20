@@ -14,7 +14,6 @@ MEASURES = [
     "htoe",
     "hangle",
     "inter_dependence",
-    "inter_dependence_prop",
     "toe_var",
     "angle_var",
     "total_var",
