@@ -172,9 +172,9 @@ coposition:
 # Used for comparing Ipsilateral vs Contralateral in healthy subjects
 composition-crossgroup:
   # Main plot title
-  title: "<b>Cross-Group Compositional Analysis</b>"
+  title: "<b>Compositional Analysis</b>"
   title-font-family: "Arial"
-  title-font-size: 26
+  title-font-size: 28
   title-text-color: "black"
 
   # Subplot titles
@@ -186,7 +186,7 @@ composition-crossgroup:
     - "<b>D.</b> Individual Proportions Post-hoc (CLR)"
 
   subtitle-font-family: "Arial"
-  subtitle-font-size: 22
+  subtitle-font-size: 24
   subtitle-text-color: "black"
 
   # Variable labels with abbreviations for space efficiency
@@ -233,40 +233,40 @@ composition-crossgroup:
       angle_var_prop: "#10B981" # Green for H(A|T) - Angle variation
       inter_dependence_prop: "#F59E0B" # Orange for I(T;A) - Interdependence
 
-    text-size: 16 # Size of percentage text inside bars
+    text-size: 18 # Size of percentage text inside bars
     bar-width: 0.85 # Width of bars (0-1)
 
-    annotation-text-size: 16 # Size of text annotations (inside bars)
+    annotation-text-size: 18 # Size of text annotations (inside bars)
     annotation-font-family: "Arial"
     annotation-font-color: "white" # Color of text inside bars
 
-    xaxis-label-text-size: 16 # Size of x-axis labels
-    yaxis-label-text-size: 16 # Size of y-axis labels
+    xaxis-label-text-size: 18 # Size of x-axis labels
+    yaxis-label-text-size: 18 # Size of y-axis labels
 
   # Subplot B: Omnibus test results (Hotelling's T²)
   omnibus-plot:
-    mahalanobis-text-size: 16 # Size of Mahalanobis D text inside bars
+    mahalanobis-text-size: 18 # Size of Mahalanobis D text inside bars
     mahalanobis-font-family: "Arial"
     mahalanobis-font-color: "white" # Color of Mahalanobis D text
 
-    p-value-annotation-text-size: 14 # Size of p-value threshold annotations
+    p-value-annotation-text-size: 18 # Size of p-value threshold annotations
     p-value-annotation-font-family: "Arial"
     p-value-annotation-font-color: "gray"
 
-    xaxis-label-text-size: 16
-    yaxis-label-text-size: 16
+    xaxis-label-text-size: 18
+    yaxis-label-text-size: 18
 
   # Subplot C: ILR coordinates post-hoc tests
   ilr-coordinates-plot:
-    cohens-text-size: 14 # Size of Cohen's d text inside bars
+    cohens-text-size: 18 # Size of Cohen's d text inside bars
     cohens-font-family: "Arial"
 
-    p-value-annotation-text-size: 14 # Size of p-value threshold annotations
+    p-value-annotation-text-size: 18 # Size of p-value threshold annotations
     p-value-annotation-font-family: "Arial"
     p-value-annotation-font-color: "gray"
 
-    xaxis-label-text-size: 16
-    yaxis-label-text-size: 16
+    xaxis-label-text-size: 18
+    yaxis-label-text-size: 18
 
   # Subplot D: Individual proportions post-hoc (CLR)
   clr-posthoc-plot:
@@ -277,8 +277,8 @@ composition-crossgroup:
     p-value-annotation-font-family: "Arial"
     p-value-annotation-font-color: "gray"
 
-    xaxis-label-text-size: 16
-    yaxis-label-text-size: 16
+    xaxis-label-text-size: 18
+    yaxis-label-text-size: 18
 
   # Subplot E: ILR space scatter plot
   ilr-scatter-plot:
@@ -294,7 +294,7 @@ composition-crossgroup:
       L-R: "#D55E00" # Vermillion - Left foot, Right ankle
       R-L: "#F0E442" # Yellow - Right foot, Left ankle
 
-    marker-size: 10 # Size of scatter plot markers
+    marker-size: 12 # Size of scatter plot markers
 
     # Reference lines at origin
     xaxis-zeroline:
@@ -305,21 +305,21 @@ composition-crossgroup:
       color: "lightgray"
       width: 2
 
-    text-size: 16 # General text size
+    text-size: 18 # General text size
 
-    xaxis-label-text-size: 16
+    xaxis-label-text-size: 18
     xaxis-label: "ILR1" # X-axis label
 
-    yaxis-label-text-size: 16
+    yaxis-label-text-size: 18
     yaxis-label: "ILR2" # Y-axis label
 
   # Export settings for PDF output
   export-pdf:
-    width: 1800 # Width in pixels
+    width: 2100 # Width in pixels
     height: 1200 # Height in pixels
     scale: 1 # Scale factor (1 = 100%)
 
   # Export settings for HTML output
   export-html:
-    width: 1800 # Width in pixels
+    width: 2100 # Width in pixels
     height: 1200 # Height in pixels
