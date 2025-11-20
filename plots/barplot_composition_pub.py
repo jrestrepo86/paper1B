@@ -166,7 +166,9 @@ def make_proportion_barplot(
             ),
             insidetextanchor="middle",
             showlegend=True,
-            legendgroup="coord",
+            legendgroup="legend",
+            legend="legend",
+            legendgrouptitle_text="Composition" if row == 1 else None,
             hovertemplate="<b>H(T|A)</b><br>%{y:.2f}%<br>%{customdata:.3f} nats<extra></extra>",
             customdata=toe_var,
             width=bar_width,
@@ -190,7 +192,9 @@ def make_proportion_barplot(
             ),
             insidetextanchor="middle",
             showlegend=True,
-            legendgroup="coord",
+            legend="legend",
+            legendgroup="legend",
+            legendgrouptitle_text="Composition" if row == 1 else None,
             hovertemplate="<b>H(A|T)</b><br>%{y:.2f}%<br>%{customdata:.3f} nats<extra></extra>",
             customdata=angle_var,
             width=bar_width,
@@ -217,7 +221,9 @@ def make_proportion_barplot(
             ),
             insidetextanchor="middle",
             showlegend=True,
-            legendgroup="coord",
+            legend="legend",
+            legendgroup="legend",
+            legendgrouptitle_text="Composition" if row == 1 else None,
             hovertemplate="<b>I(T;A)</b><br>%{y:.2f}%<br>%{customdata:.3f} nats<extra></extra>",
             customdata=inter_dependence,
             width=bar_width,
@@ -756,11 +762,6 @@ def make_ilr_scatter_plot(
         ilr1 = class_data["ilr1"].values
         ilr2 = class_data["ilr2"].values
 
-        # xmin = min(xmin, min(ilr1))
-        # xmax = max(xmax, max(ilr1))
-        # ymin = min(ymin, min(ilr2))
-        # ymax = max(ymax, max(ilr2))
-
         # Add scatter trace
         fig.add_trace(
             go.Scatter(
@@ -783,6 +784,9 @@ def make_ilr_scatter_plot(
                     "<extra></extra>"
                 ),
                 showlegend=True,
+                legend="legend2",
+                legendgroup="legend2",
+                legendgrouptitle_text="ILR Classes" if row == 1 else None,
             ),
             row=row,
             col=col,
@@ -939,8 +943,8 @@ def main():
 
             # Define which classes to use for ILR scatter plots
             if is_healthy:
-                ips_clases = ["L-L", "R-R"]
-                contra_clases = ["L-R", "R-L"]
+                ips_clases = ["R-R", "L-L"]
+                contra_clases = ["R-L", "L-R"]
             else:
                 ips_clases = ["A-A", "S-S"]
                 contra_clases = ["A-S", "S-A"]
@@ -1025,6 +1029,12 @@ def main():
             figure_width = comp_config["export-html"]["width"]
             figure_height = comp_config["export-html"]["height"]
 
+            # Get legend configuration
+            composition_legend = comp_config.get("composition-legend", {})
+            scatter_legend = comp_config.get("scatter-legend", {})
+
+            showlegend = True
+
             # Update layout with config parameters
             fig.update_layout(
                 title={
@@ -1046,18 +1056,9 @@ def main():
                 ),
                 plot_bgcolor="white",
                 paper_bgcolor="white",
-                showlegend=True,
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="left",
-                    x=0,
-                    font=dict(
-                        size=comp_config["subtitle-font-size"] - 2,
-                        family=comp_config["subtitle-font-family"],
-                    ),
-                ),
+                showlegend=showlegend,
+                legend=composition_legend,
+                legend2=scatter_legend,
             )
 
             # Update subplot title fonts

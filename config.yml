@@ -36,7 +36,31 @@ coposition:
     toe_clr: "Toe Var."
     angle_clr: "Angle Var."
     inter_dep_clr: "Inter-dep."
-
+  # legends
+  composition-legend:
+    orientation: "h"
+    x: 0.77
+    y: 0.05
+    xanchor: "left"
+    yanchor: "bottom"
+    font:
+      size: 20
+      family: "Arial"
+    bgcolor: "rgba(255, 255, 255, 0.9)"
+    bordercolor: "gray"
+    borderwidth: 0
+  scatter-legend:
+    orientation: "v"
+    x: 0.90
+    y: 0.025
+    xanchor: "left"
+    yanchor: "bottom"
+    font:
+      size: 20
+      family: "Arial"
+    bgcolor: "rgba(255, 255, 255, 0.9)"
+    bordercolor: "gray"
+    borderwidth: 0
   # Subplot A: Stacked bar plot showing composition proportions
   proportions-bar-plot:
     colors:
