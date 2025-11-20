@@ -323,3 +323,86 @@ composition-crossgroup:
   export-html:
     width: 2100 # Width in pixels
     height: 1200 # Height in pixels
+
+# Configuration for laterality index plots
+laterality-plot:
+  # Main plot title
+  title: "<b>Laterality Index</b>"
+  title-font-family: "Arial"
+  title-font-size: 28
+  title-text-color: "black"
+
+  # Subplot titles
+  subtitles:
+    boxplot: "<b>A.</b> Laterality Index Distribution by Phase"
+    table: "<b>B.</b> Statistical Summary"
+
+  subtitle-font-family: "Arial"
+  subtitle-font-size: 24
+  subtitle-text-color: "black"
+
+  # Boxplot configuration
+  boxplot:
+    # Colors for each phase
+    colors:
+      stance: "#3498db" # Blue
+      swing: "#e74c3c" # Red
+      cycle: "#2ecc71" # Green
+      lines: "#000000" # Black
+
+    box-width: 0.6 # Width of boxes
+    marker-size: 8 # Size of individual points
+    marker-opacity: 0.6 # Opacity of individual points
+    jitter: 0.15 # Jitter for individual points (horizontal spread)
+    pointpos: -1.5 # Position of points relative to box (-2 = far left, 0 = center)
+
+    line-width: 1 # Width of box lines
+    box-fillalpha: 0.7 # Transparency of box fill
+
+    # Zero line (no laterality reference)
+    zeroline-color: "black"
+    zeroline-width: 2
+    zeroline-dash: "dash"
+
+    # Axes
+    xaxis-title: ""
+    xaxis-title-size: 20
+    xaxis-tick-size: 18
+
+    yaxis-title: "Laterality Index (%)"
+    yaxis-title-size: 20
+    yaxis-tick-size: 18
+
+  # Table configuration
+  table:
+    header-bgcolor: "#3498db"
+    header-fontcolor: "white"
+    header-fontsize: 14
+    header-align: "center"
+
+    cells-bgcolor: ["white", "#ecf0f1"] # Alternating row colors
+    cells-fontsize: 12
+    cells-align: "center"
+    cells-height: 30
+
+  # Annotation box for interpretation
+  interpretation-box:
+    show: true
+    bgcolor: "rgba(230, 240, 255, 0.8)"
+    bordercolor: "black"
+    borderwidth: 1
+    font-size: 11
+    x-position: 0.98 # Paper coordinates (0-1)
+    y-position: 0.52
+    xanchor: "right"
+    yanchor: "top"
+
+  # Export settings
+  export-pdf:
+    width: 1400
+    height: 1000
+    scale: 1
+
+  export-html:
+    width: 1400
+    height: 1000
