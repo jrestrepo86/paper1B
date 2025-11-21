@@ -377,11 +377,11 @@ laterality-plot:
   table:
     header-bgcolor: "#3498db"
     header-fontcolor: "white"
-    header-fontsize: 14
+    header-fontsize: 18
     header-align: "center"
 
     cells-bgcolor: ["white", "#ecf0f1"] # Alternating row colors
-    cells-fontsize: 12
+    cells-fontsize: 14
     cells-align: "center"
     cells-height: 30
 
@@ -391,7 +391,7 @@ laterality-plot:
     bgcolor: "rgba(230, 240, 255, 0.8)"
     bordercolor: "black"
     borderwidth: 1
-    font-size: 11
+    font-size: 18
     x-position: 0.98 # Paper coordinates (0-1)
     y-position: 0.52
     xanchor: "right"
@@ -399,10 +399,10 @@ laterality-plot:
 
   # Export settings
   export-pdf:
-    width: 1400
-    height: 1000
+    width: 1600 # Width in pixels
+    height: 700 # Height in pixels
     scale: 1
 
   export-html:
-    width: 1400
-    height: 1000
+    width: 2100 # Width in pixels
+    height: 1200 # Height in pixels

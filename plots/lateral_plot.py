@@ -1,19 +1,16 @@
 """
-Laterality Index (LI_MI) Distribution by Gait Phase - Interactive Visualization
+Laterality Index (CLI) - Coordination Laterality based on Inter-dependence Proportion
 Author: Analysis Script
 Date: 2024
 
-This script creates interactive boxplots showing the distribution of
-Laterality Index across different gait phases using Plotly.
+Coordination Laterality Index (CLI):
+CLI = (inter_dep_prop_RR - inter_dep_prop_LL) × 100
 
-The Laterality Index is defined as:
-L_{class1 vs class2} = (I_{class1} - I_{class2}) / (I_{class1} + I_{class2}) × 100
+Positive values: Right limb has higher coordination proportion
+Negative values: Left limb has higher coordination proportion
 
-Where I is the mutual information between toe and angle.
-
-Two figures are generated:
-1. R-R vs L-L: Ipsilateral comparison (same side)
-2. R-L vs L-R: Contralateral comparison (opposite sides)
+Statistical testing: Paired Wilcoxon signed-rank test (H0: CLI = 0)
+Effect size: Cohen's d for paired differences
 """
 
 from pathlib import Path
@@ -23,6 +20,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import yaml
 from plotly.subplots import make_subplots
+from scipy import stats
 
 # =============================================================================
 # CONFIGURATION
@@ -35,7 +33,7 @@ DATA_FILE = Path("../data/csv/sim02_complete_data.csv")
 # Phase order for consistent display
 PHASE_ORDER = ["stance", "swing", "cycle"]
 PHASE_DISPLAY = {"stance": "Stance", "swing": "Swing", "cycle": "Complete Cycle"}
-METRIC = "ilr1"
+METRIC = "inter_dependence_prop"  # Using inter-dependence proportion
 
 # =============================================================================
 # FUNCTIONS
@@ -49,69 +47,132 @@ def load_config():
     return config
 
 
-def calculate_laterality_index(data, class1, class2, metric):
+def calculate_cli(data, metric="inter_dependence_prop"):
     """
-    Calculate Laterality Index between two classes
+    Calculate Coordination Laterality Index (CLI)
 
-    L = (I_class1 - I_class2) / (I_class1 + I_class2) × 100
+    CLI = (inter_dep_prop_RR - inter_dep_prop_LL) × 100
 
     Parameters:
     -----------
     data : pd.DataFrame
         DataFrame containing the gait data (healthy subjects only)
-    class1 : str
-        First class identifier (e.g., 'R-R')
-    class2 : str
-        Second class identifier (e.g., 'L-L')
     metric : str
-        Metric to use for LI calculation (default: 'mi' for mutual information)
+        Metric to use (default: 'inter_dependence_prop')
 
     Returns:
     --------
     pd.DataFrame
-        DataFrame with columns: subject, phase, LI, class1_value, class2_value
+        DataFrame with columns: subject, phase, CLI, RR, LL
     """
     results = []
 
-    # Get unique phases
     phases = data["cycle"].unique()
 
     for phase in phases:
-        # Filter data for this phase
         phase_data = data[data["cycle"] == phase].copy()
 
-        # Get class1 and class2 data
-        class1_data = phase_data[phase_data["toe_angle"] == class1][
+        # Get R-R and L-L data
+        rr_data = phase_data[phase_data["toe_angle"] == "R-R"][
             ["subject", metric]
         ].copy()
-        class2_data = phase_data[phase_data["toe_angle"] == class2][
+        ll_data = phase_data[phase_data["toe_angle"] == "L-L"][
             ["subject", metric]
         ].copy()
 
-        class1_data.columns = ["subject", "class1_value"]
-        class2_data.columns = ["subject", "class2_value"]
+        rr_data.columns = ["subject", "RR"]
+        ll_data.columns = ["subject", "LL"]
 
-        # Merge
-        comparison = pd.merge(class1_data, class2_data, on="subject", how="inner")
+        # Merge by subject (paired data)
+        comparison = pd.merge(rr_data, ll_data, on="subject", how="inner")
 
-        # Calculate Laterality Index
-        # LI = (I_class1 - I_class2) / (I_class1 + I_class2) × 100
-        comparison["LI"] = -(
-            (comparison["class1_value"] - comparison["class2_value"])
-            / (comparison["class1_value"] + comparison["class2_value"])
-            * 100
-        )
+        # Calculate CLI as simple difference × 100
+        comparison["CLI"] = (comparison["RR"] - comparison["LL"]) * 100
         comparison["phase"] = phase
 
-        results.append(
-            comparison[["subject", "phase", "LI", "class1_value", "class2_value"]]
-        )
+        results.append(comparison[["subject", "phase", "CLI", "RR", "LL"]])
 
     return pd.concat(results, ignore_index=True)
 
 
+def calculate_cohens_d_paired(differences):
+    """
+    Calculate Cohen's d for paired differences
+
+    d = mean(differences) / std(differences)
+
+    Parameters:
+    -----------
+    differences : array-like
+        Paired differences
+
+    Returns:
+    --------
+    float : Cohen's d
+    """
+    mean_diff = np.mean(differences)
+    std_diff = np.std(differences, ddof=1)
+
+    if std_diff == 0:
+        return np.nan
+
+    return mean_diff / std_diff
+
+
+def perform_wilcoxon_test(data_series):
+    """
+    Perform paired Wilcoxon signed-rank test against zero
+
+    H0: median(CLI) = 0
+    H1: median(CLI) ≠ 0
+
+    Parameters:
+    -----------
+    data_series : pd.Series or array-like
+        CLI values
+
+    Returns:
+    --------
+    dict with test results
+    """
+    # Wilcoxon signed-rank test (paired, testing against 0)
+    statistic, p_value = stats.wilcoxon(data_series, alternative="two-sided")
+
+    # Calculate Cohen's d
+    cohens_d = calculate_cohens_d_paired(data_series)
+
+    # Effect size interpretation
+    abs_d = abs(cohens_d)
+    if abs_d < 0.2:
+        effect_size = "negligible"
+    elif abs_d < 0.5:
+        effect_size = "small"
+    elif abs_d < 0.8:
+        effect_size = "medium"
+    else:
+        effect_size = "large"
+
+    # Significance
+    if p_value < 0.001:
+        sig = "***"
+    elif p_value < 0.01:
+        sig = "**"
+    elif p_value < 0.05:
+        sig = "*"
+    else:
+        sig = "ns"
+
+    return {
+        "statistic": statistic,
+        "p_value": p_value,
+        "cohens_d": cohens_d,
+        "effect_size": effect_size,
+        "significance": sig,
+    }
+
+
 def get_statistics(data_series):
-    """Calculate statistical measures for a data series"""
+    """Calculate descriptive statistics"""
     stats_dict = {
         "mean": data_series.mean(),
         "median": data_series.median(),
@@ -120,30 +181,23 @@ def get_statistics(data_series):
         "q3": data_series.quantile(0.75),
         "n": len(data_series),
         "n_positive": (data_series > 0).sum(),
+        "n_negative": (data_series < 0).sum(),
         "pct_positive": (data_series > 0).sum() / len(data_series) * 100,
     }
 
     return stats_dict
 
 
-def create_laterality_figure(
-    li_data, class1, class2, config, comparison_name="Ipsilateral"
-):
+def create_cli_figure(cli_data, config):
     """
     Create figure with boxplot and statistics table
 
     Parameters:
     -----------
-    li_data : pd.DataFrame
-        DataFrame with laterality index data
-    class1 : str
-        First class identifier
-    class2 : str
-        Second class identifier
+    cli_data : pd.DataFrame
+        DataFrame with CLI data
     config : dict
         Configuration dictionary from YAML
-    comparison_name : str
-        Name of comparison for title (e.g., 'Ipsilateral', 'Contralateral')
 
     Returns:
     --------
@@ -152,84 +206,77 @@ def create_laterality_figure(
     lat_config = config["laterality-plot"]
     box_config = lat_config["boxplot"]
     table_config = lat_config["table"]
-    interp_config = lat_config["interpretation-box"]
 
-    # Create subplots: boxplot in row1-col1, table in row2-col2
+    # Create subplots: boxplot in row1-col1, table in row1-col2
     fig = make_subplots(
         rows=1,
         cols=2,
         subplot_titles=(
-            lat_config["subtitles"]["boxplot"],
-            lat_config["subtitles"]["table"],
+            "Coordination Laterality Index by Phase",
+            "Statistical Summary",
         ),
-        specs=[[{"type": "box", "colspan": 1}, {"type": "table"}]],
-        vertical_spacing=0.15,
+        column_widths=[0.40, 0.60],
         horizontal_spacing=0.1,
-        column_widths=[0.5, 0.5],
+        specs=[[{"type": "box"}, {"type": "table"}]],
     )
 
-    # Prepare data for table
+    # Add boxplots and collect table data
     table_data = []
 
-    # Add boxplots for each phase
     for phase in PHASE_ORDER:
-        phase_data = li_data[li_data["phase"] == phase]["LI"]
-        subjects = li_data[li_data["phase"] == phase]["subject"]
+        phase_data = cli_data[cli_data["phase"] == phase]["CLI"]
 
-        if len(phase_data) == 0:
-            continue
+        if len(phase_data) > 0:
+            # Descriptive statistics
+            stats_desc = get_statistics(phase_data)
 
-        # Get statistics for this phase
-        stats = get_statistics(phase_data)
+            # Wilcoxon test and Cohen's d
+            test_results = perform_wilcoxon_test(phase_data)
 
-        # Add to table data
-        table_data.append(
-            [
-                PHASE_DISPLAY[phase],
-                f"{stats['mean']:.2f}",
-                f"{stats['median']:.2f}",
-                f"{stats['std']:.2f}",
-                f"[{stats['q1']:.2f}, {stats['q3']:.2f}]",
-                f"{stats['pct_positive']:.1f}%",
-            ]
-        )
-
-        # Create hover text for individual points
-        hover_text = [
-            f"Subject: {subj}<br>LI: {val:.2f}%<br>Phase: {PHASE_DISPLAY[phase]}"
-            for subj, val in zip(subjects, phase_data)
-        ]
-
-        # Add boxplot
-        fig.add_trace(
-            go.Box(
-                y=phase_data,
-                name=PHASE_DISPLAY[phase],
-                marker=dict(
-                    color=box_config["colors"][phase],
-                    size=box_config["marker-size"],
-                    opacity=box_config["marker-opacity"],
+            # Add boxplot
+            fig.add_trace(
+                go.Box(
+                    y=phase_data,
+                    name=PHASE_DISPLAY[phase],
+                    marker=dict(
+                        color=box_config["colors"][phase],
+                        size=box_config["marker-size"],
+                        opacity=box_config["marker-opacity"],
+                    ),
+                    line=dict(
+                        # color=box_config["colors"][phase],
+                        color=box_config["colors"]["lines"],
+                        width=box_config["line-width"],
+                    ),
+                    boxmean="sd",  # Show mean and std dev
+                    hovertemplate="<b>%{fullData.name}</b><br>"
+                    + "CLI: %{y:.2f}%<br>"
+                    + "<extra></extra>",
+                    hoverinfo="text",
+                    boxpoints="all",  # Show all points
+                    jitter=box_config["jitter"],
+                    pointpos=box_config["pointpos"],
+                    line_width=box_config["line-width"],
+                    fillcolor=box_config["colors"][phase],
+                    opacity=box_config["box-fillalpha"],
+                    width=box_config["box-width"],
                 ),
-                # boxmean=True,  # Show mean as a dashed line
-                boxmean="sd",  # Show mean and std dev
-                line=dict(
-                    # color=box_config["colors"][phase],
-                    color=box_config["colors"]["lines"],
-                    width=box_config["line-width"],
-                ),
-                text=hover_text,
-                hoverinfo="text",
-                boxpoints="all",  # Show all points
-                jitter=box_config["jitter"],
-                pointpos=box_config["pointpos"],
-                line_width=box_config["line-width"],
-                fillcolor=box_config["colors"][phase],
-                opacity=box_config["box-fillalpha"],
-                width=box_config["box-width"],
-            ),
-            row=1,
-            col=1,
-        )
+                row=1,
+                col=1,
+            )
+
+            # Collect table data
+            table_data.append(
+                [
+                    PHASE_DISPLAY[phase],
+                    f"{stats_desc['median']:.2f}",
+                    f"[{stats_desc['q1']:.2f}, {stats_desc['q3']:.2f}]",
+                    f"{test_results['p_value']:.4f} ({test_results['significance']})",
+                    # test_results["significance"],
+                    f"{test_results['cohens_d']:.3f} ({test_results['effect_size']})",
+                    f"{stats_desc['pct_positive']:.1f}",
+                ]
+            )
 
     # Add horizontal line at y=0 (no laterality)
     fig.add_hline(
@@ -248,10 +295,12 @@ def create_laterality_figure(
                 header=dict(
                     values=[
                         "<b>Phase</b>",
-                        "<b>Mean (%)</b>",
                         "<b>Median (%)</b>",
-                        "<b>SD (%)</b>",
                         "<b>IQR (%)</b>",
+                        "<b>p-value</b>",
+                        # "<b>Sig</b>",
+                        "<b>Cohen's d</b>",
+                        # "<b>Effect</b>",
                         "<b>% Positive</b>",
                     ],
                     fill_color=table_config["header-bgcolor"],
@@ -260,15 +309,13 @@ def create_laterality_figure(
                         size=table_config["header-fontsize"],
                         family=lat_config["subtitle-font-family"],
                     ),
-                    align=table_config["header-align"],
+                    align="center",
                     height=table_config["cells-height"],
                 ),
                 cells=dict(
                     values=list(zip(*table_data)),
-                    fill_color=[
-                        table_config["cells-bgcolor"] * len(table_data)
-                    ],  # Alternating colors
-                    align=table_config["cells-align"],
+                    fill_color=[table_config["cells-bgcolor"] * len(table_data)],
+                    align="center",
                     font=dict(
                         size=table_config["cells-fontsize"],
                         family=lat_config["subtitle-font-family"],
@@ -283,7 +330,7 @@ def create_laterality_figure(
     # Update layout
     fig.update_layout(
         title={
-            "text": f"{lat_config['title']} - <b>{comparison_name} ({class1} vs {class2})</b>",
+            "text": "Coordination Laterality Index (CLI)<br>",
             "x": 0.5,
             "xanchor": "center",
             "font": {
@@ -305,7 +352,7 @@ def create_laterality_figure(
 
     # Update axes
     fig.update_xaxes(
-        title_text=box_config["xaxis-title"],
+        title_text="",
         title_font=dict(
             size=box_config["xaxis-title-size"],
             family=lat_config["subtitle-font-family"],
@@ -319,7 +366,7 @@ def create_laterality_figure(
     )
 
     fig.update_yaxes(
-        title_text=box_config["yaxis-title"],
+        title_text="CLI (%)",
         title_font=dict(
             size=box_config["yaxis-title-size"],
             family=lat_config["subtitle-font-family"],
@@ -338,15 +385,11 @@ def create_laterality_figure(
 
     # Update subplot title fonts
     for annotation in fig["layout"]["annotations"]:
-        if annotation["text"] in [
-            lat_config["subtitles"]["boxplot"],
-            lat_config["subtitles"]["table"],
-        ]:
-            annotation["font"] = dict(
-                size=lat_config["subtitle-font-size"],
-                family=lat_config["subtitle-font-family"],
-                color=lat_config["subtitle-text-color"],
-            )
+        annotation["font"] = dict(
+            size=lat_config["subtitle-font-size"],
+            family=lat_config["subtitle-font-family"],
+            color=lat_config["subtitle-text-color"],
+        )
 
     return fig
 
@@ -360,7 +403,8 @@ def main():
     """Main execution function"""
 
     print("=" * 80)
-    print("LATERALITY INDEX VISUALIZATION")
+    print("COORDINATION LATERALITY INDEX (CLI) ANALYSIS")
+    print("CLI = (inter_dep_prop_RR - inter_dep_prop_LL) × 100")
     print("=" * 80)
 
     # Load configuration
@@ -380,86 +424,82 @@ def main():
     print(f"   Unique subjects: {healthy['subject'].nunique()}")
     print(f"   Phases: {healthy['cycle'].unique().tolist()}")
 
-    # Define comparisons
-    comparisons = [
-        {
-            "name": "Ipsilateral",
-            "class1": "R-R",
-            "class2": "L-L",
-            "description": "Same side comparison",
-        },
-        {
-            "name": "Contralateral",
-            "class1": "R-L",
-            "class2": "L-R",
-            "description": "Opposite sides comparison",
-        },
-    ]
+    # Calculate CLI
+    print(f"\n4. Calculating CLI using {METRIC}...")
+    cli_data = calculate_cli(healthy, metric=METRIC)
+    print(f"   Calculated CLI for {len(cli_data)} subject-phase combinations")
+
+    # Display summary statistics with tests
+    print("\n5. Statistical Analysis:")
+    print("=" * 80)
+    print(
+        f"{'Phase':<12} {'Mean±SD':<20} {'Median [IQR]':<25} {'p-value':<12} {'d':<8} {'Effect'}"
+    )
+    print("-" * 80)
+
+    for phase in PHASE_ORDER:
+        phase_data = cli_data[cli_data["phase"] == phase]["CLI"]
+
+        if len(phase_data) > 0:
+            stats_desc = get_statistics(phase_data)
+            test_results = perform_wilcoxon_test(phase_data)
+
+            print(
+                f"{PHASE_DISPLAY[phase]:<12} "
+                f"{stats_desc['mean']:>6.2f}±{stats_desc['std']:<5.2f}       "
+                f"{stats_desc['median']:>6.2f} "
+                f"[{stats_desc['q1']:>6.2f}, {stats_desc['q3']:>6.2f}]   "
+                f"{test_results['p_value']:>8.4f} {test_results['significance']:<3} "
+                f"{test_results['cohens_d']:>6.3f}  "
+                f"{test_results['effect_size']}"
+            )
+
+    print("=" * 80)
+    print("\nInterpretation:")
+    print("  • Positive CLI: Right limb shows higher coordination proportion")
+    print("  • Negative CLI: Left limb shows higher coordination proportion")
+    print("  • p-value: Wilcoxon signed-rank test (H0: CLI = 0)")
+    print("  • Cohen's d: Effect size for paired differences")
+    print("=" * 80)
+
+    # Create visualization
+    print("\n6. Creating visualization...")
+    fig = create_cli_figure(cli_data, config)
 
     # Create output directory
     output_dir = Path("../figs/laterality_index")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Process each comparison
-    for comp in comparisons:
-        print(
-            f"\n4. Processing {comp['name']} comparison ({comp['class1']} vs {comp['class2']})..."
+    # Save HTML
+    html_file = output_dir / "coordination_laterality_index.html"
+    fig.write_html(str(html_file))
+    print(f"   ✓ Saved: {html_file}")
+
+    # Save PDF
+    try:
+        pdf_file = output_dir / "coordination_laterality_index.pdf"
+        fig.write_image(
+            str(pdf_file),
+            width=config["laterality-plot"]["export-pdf"]["width"],
+            height=config["laterality-plot"]["export-pdf"]["height"],
+            scale=config["laterality-plot"]["export-pdf"]["scale"],
         )
+        print(f"   ✓ Saved: {pdf_file}")
+    except Exception as e:
+        print(f"   ⚠ Could not save PDF: {e}")
 
-        # Calculate Laterality Index
-        li_data = calculate_laterality_index(
-            healthy, comp["class1"], comp["class2"], metric=METRIC
-        )
-        print(f"   Calculated LI for {len(li_data)} subject-phase combinations")
-
-        # Display summary statistics
-        print(f"\n   Summary Statistics for {comp['name']}:")
-        print("   " + "-" * 76)
-
-        for phase in PHASE_ORDER:
-            phase_data = li_data[li_data["phase"] == phase]["LI"]
-            if len(phase_data) > 0:
-                stats = get_statistics(phase_data)
-                print(f"\n   {PHASE_DISPLAY[phase].upper()}:")
-                print(f"      Mean ± SD: {stats['mean']:.2f} ± {stats['std']:.2f}%")
-                print(
-                    f"      Median [IQR]: {stats['median']:.2f} "
-                    f"[{stats['q1']:.2f}, {stats['q3']:.2f}]%"
-                )
-                print(f"      % Positive: {stats['pct_positive']:.1f}%")
-
-        # Create figure
-        print(f"\n   Creating visualization...")
-        fig = create_laterality_figure(
-            li_data, comp["class1"], comp["class2"], config, comp["name"]
-        )
-
-        # Save files
-        file_prefix = f"laterality_index_{comp['name'].lower()}"
-
-        # Save HTML
-        html_file = output_dir / f"{file_prefix}.html"
-        fig.write_html(str(html_file))
-        print(f"   ✓ Saved: {html_file}")
-
-        # Save PDF
-        try:
-            pdf_file = output_dir / f"{file_prefix}.pdf"
-            fig.write_image(
-                str(pdf_file),
-                width=config["laterality-plot"]["export-pdf"]["width"],
-                height=config["laterality-plot"]["export-pdf"]["height"],
-                scale=config["laterality-plot"]["export-pdf"]["scale"],
-            )
-            print(f"   ✓ Saved: {pdf_file}")
-        except Exception as e:
-            print(f"   ⚠ Could not save PDF: {e}")
+    # Save data
+    csv_file = output_dir / "coordination_laterality_data.csv"
+    cli_data.to_csv(csv_file, index=False)
+    print(f"   ✓ Saved: {csv_file}")
 
     print("\n" + "=" * 80)
-    print("VISUALIZATION COMPLETE!")
+    print("ANALYSIS COMPLETE!")
     print("=" * 80)
     print(f"\nFiles saved to: {output_dir}")
     print("=" * 80)
+
+    return fig, cli_data
 
 
 # =============================================================================
@@ -467,4 +507,4 @@ def main():
 # =============================================================================
 
 if __name__ == "__main__":
-    main()
+    fig, cli_data = main()
