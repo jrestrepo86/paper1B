@@ -995,9 +995,9 @@ def main():
                 subject_df,
                 prosthesis,
                 cycle,
-                classes=contra_clases,
+                classes=ips_clases,
                 fig=fig,
-                row=2,
+                row=1,
                 col=3,
                 config=config,
             )
@@ -1006,9 +1006,9 @@ def main():
                 subject_df,
                 prosthesis,
                 cycle,
-                classes=ips_clases,
+                classes=contra_clases,
                 fig=fig,
-                row=1,
+                row=2,
                 col=3,
                 config=config,
             )

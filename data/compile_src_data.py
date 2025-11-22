@@ -223,14 +223,14 @@ def calculate_metrics(df: pd.DataFrame) -> pd.DataFrame:
     healthy_avg = healthy.groupby(
         grouping_columns,
         as_index=False,
-    )[base_metrics_to_aggregate].median(numeric_only=True)
+    )[base_metrics_to_aggregate].mean(numeric_only=True)
 
     # amputee subjects
     amputee = df[df["condition"] == "amputee"].copy()
     amputee_avg = amputee.groupby(
         grouping_columns,
         as_index=False,
-    )[base_metrics_to_aggregate].median(numeric_only=True)
+    )[base_metrics_to_aggregate].mean(numeric_only=True)
 
     dfc = pd.concat([amputee_avg, healthy_avg], ignore_index=True)
 
