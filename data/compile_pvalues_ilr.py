@@ -83,12 +83,34 @@ def get_data(df, class1, class2, is_paired):
     data1 = df[df[class_col] == class1][all_cols].dropna()
     data2 = df[df[class_col] == class2][all_cols].dropna()
 
-    # Average by subject (only used for Same and Contra conditions)
-    data1 = data1.groupby("subject")[comp_cols].mean()
-    data2 = data2.groupby("subject")[comp_cols].mean()
+    def get_class_data(df, class_name):
+        """Get data for a single class, handling meta-classes Same and Contra."""
+        if class_name == "Same":
+            # Same = ipsilateral (L-L and R-R combined)
+            data = df[df["toe_angle"].isin(["L-L", "R-R"])][all_cols].dropna()
+            # Average by subject (each subject has L-L and R-R)
+            data = data.groupby("subject")[comp_cols].mean()
+        elif class_name == "Contra":
+            # Contra = contralateral (L-R and R-L combined)
+            data = df[df["toe_angle"].isin(["L-R", "R-L"])][all_cols].dropna()
+            # Average by subject (each subject has L-R and R-L)
+            data = data.groupby("subject")[comp_cols].mean()
+        elif class_name in ["L-L", "R-R", "L-R", "R-L"]:
+            # Individual healthy classes - no averaging needed
+            data = df[df["toe_angle"] == class_name][all_cols].dropna()
+            data = data.set_index("subject")[comp_cols]
+        else:
+            # Amputee classes (A-A, S-S, A-S, S-A) - no averaging needed
+            data = df[df["amp_sound"] == class_name][all_cols].dropna()
+            data = data.set_index("subject")[comp_cols]
+
+        return data
+
+    data1 = get_class_data(df, class1)
+    data2 = get_class_data(df, class2)
 
     if is_paired:
-        # CRITICAL Keep only common subjects and ensure alignment
+        # Keep only common subjects and ensure alignment
         common_subjects = data1.index.intersection(data2.index)
 
         # Sort by subject to ensure alignment
