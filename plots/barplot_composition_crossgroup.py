@@ -788,8 +788,14 @@ def make_ilr_scatter_plot(
             continue
 
         # Extract ILR coordinates
-        ilr1 = class_data["ilr1"].values
-        ilr2 = class_data["ilr2"].values
+        # ilr1 = class_data["ilr1"].values
+        # ilr2 = class_data["ilr2"].values
+        subject_avg = (
+            class_data.groupby("subject")[["ilr1", "ilr2"]].mean().reset_index()
+        )
+        ilr1 = subject_avg["ilr1"].values
+        ilr2 = subject_avg["ilr2"].values
+        subjects = subject_avg["subject"].values
 
         # Add scatter trace
         fig.add_trace(
@@ -804,7 +810,7 @@ def make_ilr_scatter_plot(
                     opacity=0.7,
                     line=dict(width=1, color="white"),
                 ),
-                text=class_data["subject"],
+                text=subjects,
                 hovertemplate=(
                     f"<b>{display_class}</b><br>"
                     "Subject: %{text}<br>"

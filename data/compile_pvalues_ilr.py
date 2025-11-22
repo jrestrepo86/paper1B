@@ -18,6 +18,10 @@ CLR_COLUMNS = ["toe_clr", "angle_clr", "inter_dep_clr"]
 
 # Define comparison pairs
 COMPARISON_PAIRS = [
+    # Group 3 (g3): Healthy paired comparisons
+    ("L-L", "R-R", ["none"], "paired", "g3"),
+    ("L-R", "R-L", ["none"], "paired", "g3"),
+    ("Same", "Contra", ["none"], "paired", "g3"),
     # Group 1 (g1): Amputee with Mech prosthesis
     ("A-A", "S-S", ["Mech"], "paired", "g1"),
     ("A-S", "S-A", ["Mech"], "paired", "g1"),
@@ -32,10 +36,6 @@ COMPARISON_PAIRS = [
     ("S-S", "Same", ["Ech", "none"], "unpaired", "g2"),
     ("A-S", "Contra", ["Ech", "none"], "unpaired", "g2"),
     ("S-A", "Contra", ["Ech", "none"], "unpaired", "g2"),
-    # Group 3 (g3): Healthy paired comparisons
-    ("L-L", "R-R", ["none"], "paired", "g3"),
-    ("L-R", "R-L", ["none"], "paired", "g3"),
-    ("Same", "Contra", ["none"], "paired", "g3"),
 ]
 
 
