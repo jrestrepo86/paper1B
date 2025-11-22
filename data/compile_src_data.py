@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# INPUT_FOLDER = Path("/home/jrestrepo/Documents/DatosToeMineAmp").resolve()
-INPUT_FOLDER = Path("/media/Datos/toe-mine-amp/sim02_rep")
+INPUT_FOLDER = Path("/home/jrestrepo/Documents/DatosToeMineAmp").resolve()
+# INPUT_FOLDER = Path("/media/Datos/toe-mine-amp/sim02_rep")
 OUTPUT_FOLDER = Path("./csv").resolve()
 
 
@@ -45,7 +45,7 @@ def ilr_transform(toe_var_prop, angle_var_prop, inter_dependence_prop):
     ILR1 = np.sqrt(2 / 3) * np.log(inter_dependence_prop / geom_mean_independent)
 
     # ILR2: toe vs. angle
-    ILR2 = np.sqrt(1 / 2) * np.log(toe_var_prop / angle_var_prop)
+    ILR2 = np.sqrt(1 / 2) * np.log(angle_var_prop / toe_var_prop)
 
     return ILR1, ILR2
 
@@ -70,8 +70,8 @@ def ilr_inverse(ilr1, ilr2):
     # Structure: [toe, angle, inter_dependence]
     V = np.array(
         [
-            [-np.sqrt(1 / 6), np.sqrt(1 / 2)],  # toe
-            [-np.sqrt(1 / 6), -np.sqrt(1 / 2)],  # angle
+            [-np.sqrt(1 / 6), -np.sqrt(1 / 2)],  # toe
+            [-np.sqrt(1 / 6), np.sqrt(1 / 2)],  # angle
             [np.sqrt(2 / 3), 0],  # inter_dependence
         ]
     )

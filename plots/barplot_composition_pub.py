@@ -893,10 +893,10 @@ def main():
             "name": "Healthy",
             "condition": "healthy",
             "prosthesis": "none",
-            "classes": ["L-L", "R-R", "L-R", "R-L"],
+            "classes": ["R-R", "L-L", "R-L", "L-R"],
             "pairs": [
-                ("L-L", "R-R"),
-                ("L-R", "R-L"),
+                ("R-R", "L-L"),
+                ("R-L", "L-R"),
             ],
         },
         # Amputee subjects with Mechanical prosthesis

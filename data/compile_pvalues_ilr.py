@@ -11,7 +11,7 @@ OUTPUT_FOLDER = Path("./csv").resolve()
 
 # Toggle between parametric and non-parametric tests FOR P-VALUES
 # Effect sizes always use Cohen's d (standard for compositional data)
-USE_NONPARAMETRIC = False  # Set to False to use t-tests for p-values
+USE_NONPARAMETRIC = True  # Set to False to use t-tests for p-values
 
 ILR_COLUMNS = ["ilr1", "ilr2"]
 CLR_COLUMNS = ["toe_clr", "angle_clr", "inter_dep_clr"]
@@ -19,8 +19,8 @@ CLR_COLUMNS = ["toe_clr", "angle_clr", "inter_dep_clr"]
 # Define comparison pairs
 COMPARISON_PAIRS = [
     # Group 3 (g3): Healthy paired comparisons
-    ("L-L", "R-R", ["none"], "paired", "g3"),
-    ("L-R", "R-L", ["none"], "paired", "g3"),
+    ("R-R", "L-L", ["none"], "paired", "g3"),
+    ("R-L", "L-R", ["none"], "paired", "g3"),
     ("Same", "Contra", ["none"], "paired", "g3"),
     # Group 1 (g1): Amputee with Mech prosthesis
     ("A-A", "S-S", ["Mech"], "paired", "g1"),
@@ -113,6 +113,7 @@ def omnibus_test(comp1, comp2, is_paired):
 
     This is the omnibus test asking: "Does the composition differ?"
     """
+
     comp1_ilr = comp1[ILR_COLUMNS].values
     comp2_ilr = comp2[ILR_COLUMNS].values
 
@@ -125,8 +126,7 @@ def omnibus_test(comp1, comp2, is_paired):
         T2 = result["T2"].values[0]  # Hotelling's T² statistic
 
         # Calculate Mahalanobis distance (D)
-        n1 = len(comp1_ilr)
-        n2 = len(comp1_ilr) if not is_paired else n1
+        n1, n2 = len(comp1_ilr), len(comp2_ilr)
 
         if is_paired:
             # For paired data
